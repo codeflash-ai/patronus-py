@@ -85,6 +85,16 @@ class BaseAPIClient:
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
 
+        # Precompute headers that rarely change and cache
+        # Platform and auth headers can safely be assumed not to change for the client instance after construction
+        # Content-Type is set in call_sync if needed
+        self._common_headers = {
+            "Accept": "application/json",
+            "User-Agent": self.user_agent,
+            **self.auth_headers(),
+            **self.platform_headers(),
+        }
+
     def set_target(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -128,12 +138,16 @@ class BaseAPIClient:
 
         url = self._url(path)
         log.debug(f"Sending HTTP request {url!r}")
+
+        # Only alter Content-Type if not the default, which is "application/json"
+        headers = self._common_headers
+
         response = self.http_sync.request(
             method,
             url,
             params=params,
             content=content,
-            headers=self.headers(),
+            headers=headers,
         )
         return self._call_process_resp(url, response, response_cls)
 
