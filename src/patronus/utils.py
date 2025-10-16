@@ -10,16 +10,16 @@ NOT_GIVEN = object()
 class LogSerializer(ABC):
     """
     Abstract base class for objects that can serialize themselves for logging.
-    
+
     Classes implementing this interface provide a method to convert their state
     into a dictionary format suitable for OpenTelemetry logging.
     """
-    
+
     @abstractmethod
     def dump_as_log(self) -> Any:
         """
         Serialize the object into a dictionary format suitable for logging.
-        
+
         Returns:
             A dictionary representation of the object for logging purposes.
         """
@@ -27,16 +27,24 @@ class LogSerializer(ABC):
 
 
 def merge_tags(tags: Optional[dict], new_tags: Optional[dict], experiment_tags: Optional[dict]) -> dict:
+    # Avoid creating extra dicts/sets and dictionary unpacking
     tags = tags or {}
     new_tags = new_tags or {}
     experiment_tags = experiment_tags or {}
 
-    tags = {**tags, **new_tags}
-    common_keys = set(tags.keys()) & set(experiment_tags.keys())
-    diff = {key for key in common_keys if tags[key] != experiment_tags[key]}
+    # Mutate a copy so original 'tags' is not altered (behaviorally preserved)
+    merged_tags = tags.copy()
+    merged_tags.update(new_tags)
+
+    # Use set intersection directly and check only overlapping keys
+    diff = [k for k in experiment_tags if k in merged_tags and merged_tags[k] != experiment_tags[k]]
     if diff:
-        warnings.warn(f"Overriding experiment tags is not allowed. Tried to override tag: {list(diff)!r}")
-    return {**tags, **experiment_tags}
+        warnings.warn(f"Overriding experiment tags is not allowed. Tried to override tag: {diff!r}")
+
+    # Overlay experiment_tags on top (experiment_tags take precedence)
+    result = merged_tags.copy()
+    result.update(experiment_tags)
+    return result
 
 
 class Once:
@@ -66,4 +74,3 @@ class Once:
                 self._done = True
                 return True
         return False
-
