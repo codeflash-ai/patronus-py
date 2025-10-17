@@ -180,30 +180,34 @@ class PatronusAPIClient(BaseAPIClient):
         # We set defaults in case ratelimits headers were not returned. It may happen in case of an error response,
         # or in rare cases like proxy stripping response headers.
         # The defaults are selected to proceed and fallback to standard retry mechanism.
-        rpm_limit = try_int(resp.response.headers.get("x-ratelimit-rpm-limit-requests"), -1)
-        rpm_remaining = try_int(resp.response.headers.get("x-ratelimit-rpm-remaining-requests"), 1)
-        monthly_limit = try_int(resp.response.headers.get("x-ratelimit-monthly-limit-requests"), -1)
-        monthly_remaining = try_int(resp.response.headers.get("x-ratelimit-monthly-remaining-requests"), 1)
+        headers = resp.response.headers
+
+        # Use local variable to avoid multiple lookups on dict
+        rpm_limit = try_int(headers.get("x-ratelimit-rpm-limit-requests"), -1)
+        rpm_remaining = try_int(headers.get("x-ratelimit-rpm-remaining-requests"), 1)
+        monthly_limit = try_int(headers.get("x-ratelimit-monthly-limit-requests"), -1)
+        monthly_remaining = try_int(headers.get("x-ratelimit-monthly-remaining-requests"), 1)
 
         if resp.response.is_error:
-            if resp.response.status_code == 429 and monthly_remaining <= 0:
+            status_code = resp.response.status_code
+            if status_code == 429 and monthly_remaining <= 0:
                 raise UnrecoverableAPIError(
                     f"Monthly evaluation {monthly_limit!r} limit hit",
                     response=resp.response,
                 )
-            if resp.response.status_code == 429 and rpm_remaining <= 0:
+            if status_code == 429 and rpm_remaining <= 0:
                 wait_for_s = None
-                try:
-                    val: str = resp.response.headers.get("date")
-                    response_date = datetime.datetime.strptime(val, "%a, %d %b %Y %H:%M:%S %Z")
-                    wait_for_s = 60 - response_date.second
-                except Exception as err:  # noqa
-                    log.debug(
-                        "Failed to extract RPM period from the response; "
-                        f"'date' header value {resp.response.headers.get('date')!r}: "
-                        f"{err}"
-                    )
-                    pass
+                date_header = headers.get("date")
+                if date_header:
+                    try:
+                        response_date = datetime.datetime.strptime(date_header, "%a, %d %b %Y %H:%M:%S %Z")
+                        wait_for_s = 60 - response_date.second
+                    except Exception as err:  # noqa
+                        log.debug(
+                            "Failed to extract RPM period from the response; "
+                            f"'date' header value {date_header!r}: "
+                            f"{err}"
+                        )
                 raise RPMLimitError(
                     limit=rpm_limit,
                     wait_for_s=wait_for_s,
@@ -214,23 +218,26 @@ class PatronusAPIClient(BaseAPIClient):
             # 429 is an exception, but it should be handled above,
             # and if it's not then it should be handled as recoverable error.
             # It may not be handled above in rare cases - e.g. header is stripped by a proxy.
-            if resp.response.status_code != 429 and resp.response.status_code < 500:
+            if status_code != 429 and status_code < 500:
                 raise UnrecoverableAPIError(
-                    f"Response with unexpected status code: {resp.response.status_code}",
+                    f"Response with unexpected status code: {status_code}",
                     response=resp.response,
                 )
             raise APIError(
-                f"Response with unexpected status code: {resp.response.status_code}",
+                f"Response with unexpected status code: {status_code}",
                 response=resp.response,
             )
 
-        for res in resp.data.results:
-            if res.status == "validation_error":
+        # Avoid repeated attribute lookups
+        results = resp.data.results
+        for res in results:
+            status = res.status
+            if status == "validation_error":
                 raise UnrecoverableAPIError("", response=resp.response)
-            if res.status != "success":
-                raise APIError(f"evaluation failed with status {res.status!r} and message {res.error_message!r}'")
+            if status != "success":
+                raise APIError(f"evaluation failed with status {status!r} and message {res.error_message!r}'")
 
-        return resp.data.results[0].evaluation_result
+        return results[0].evaluation_result
 
     async def export_evaluations(
         self, request: api_types.ExportEvaluationRequest
