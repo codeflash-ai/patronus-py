@@ -335,7 +335,10 @@ def get_scope_or_none() -> Optional[PatronusScope]:
     Returns:
         The Patronus scope if context is available, otherwise None.
     """
-    return (ctx := get_current_context_or_none()) and ctx.scope
+    ctx = _CTX_PAT.get()
+    if ctx is not None:
+        return ctx.scope
+    return None
 
 
 def get_prompts_config(ctx: Optional[PatronusContext] = None) -> PromptsConfig:
