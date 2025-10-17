@@ -239,7 +239,8 @@ def get_api_client_deprecated_or_none() -> Optional["PatronusAPIClient"]:
     Returns:
         The Patronus API client if context is available, otherwise None.
     """
-    return (ctx := get_current_context_or_none()) and ctx.api_client_deprecated
+    ctx = _CTX_PAT.get()
+    return ctx.api_client_deprecated if ctx is not None else None
 
 
 def get_api_client(ctx: Optional[PatronusContext] = None) -> patronus_api.Client:
