@@ -263,7 +263,10 @@ def get_api_client_or_none() -> Optional[patronus_api.Client]:
     Returns:
         The Patronus API client if context is available, otherwise None.
     """
-    return (ctx := get_current_context_or_none()) and ctx.api_client
+    ctx = _CTX_PAT.get()
+    if ctx is not None:
+        return ctx.api_client
+    return None
 
 
 def get_async_api_client(ctx: Optional[PatronusContext] = None) -> patronus_api.AsyncClient:
