@@ -184,11 +184,12 @@ def get_pat_logger_or_none() -> Optional["PatLogger"]:
     Returns:
         A Patronus logger if context is available, otherwise None.
     """
-    ctx = get_current_context_or_none()
-    if ctx is None:
-        return None
-
-    return ctx.logger_provider.get_logger("patronus.sdk")
+    # Inline get_current_context_or_none for reduced call overhead
+    ctx = _CTX_PAT.get()
+    if ctx is not None:
+        # Use a single return statement to minimize branching
+        return ctx.logger_provider.get_logger("patronus.sdk")
+    return None
 
 
 def get_tracer(ctx: Optional[PatronusContext] = None) -> trace.Tracer:
