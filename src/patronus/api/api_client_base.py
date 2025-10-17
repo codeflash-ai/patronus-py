@@ -84,6 +84,14 @@ class BaseAPIClient:
         self.http_sync = client_http
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        self._platform_headers = {
+            "X-Package-Version": self.version,
+            "X-Platform-OS": get_platform_os(),
+            "X-Platform-Arch": get_platform_arch(),
+            "X-Runtime": get_python_runtime(),
+            "X-Runtime-version": get_python_version(),
+        }
+        self._auth_headers = {"x-api-key": self.api_key}
 
     def set_target(self, base_url: str, api_key: str):
         self.base_url = base_url.rstrip("/")
@@ -209,9 +217,9 @@ class BaseAPIClient:
         headers = {
             "Accept": "application/json",
             "User-Agent": self.user_agent,
-            **self.auth_headers(),
-            **self.platform_headers(),
         }
+        headers.update(self.auth_headers())
+        headers.update(self.platform_headers())
 
         if content_type:
             headers["Content-Type"] = content_type
@@ -224,19 +232,11 @@ class BaseAPIClient:
 
     def auth_headers(self) -> typing.Dict[str, str]:
         assert self.api_key, "BaseAPIClient.auth_headers(): api_key must be set"
-        return {
-            "x-api-key": self.api_key,
-        }
+        return self._auth_headers
 
     @lru_cache(maxsize=None)
     def platform_headers(self) -> typing.Dict[str, str]:
-        return {
-            "X-Package-Version": self.version,
-            "X-Platform-OS": get_platform_os(),
-            "X-Platform-Arch": get_platform_arch(),
-            "X-Runtime": get_python_runtime(),
-            "X-Runtime-version": get_python_version(),
-        }
+        return self._platform_headers
 
 
 # get_platform_os is based on implementation found in Open AI SDK
