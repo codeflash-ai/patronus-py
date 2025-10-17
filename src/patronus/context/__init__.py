@@ -311,7 +311,10 @@ def get_exporter_or_none() -> Optional["BatchEvaluationExporter"]:
     Returns:
         The batch evaluation exporter if context is available, otherwise None.
     """
-    return (ctx := get_current_context_or_none()) and ctx.exporter
+    ctx = _CTX_PAT.get()
+    if ctx is not None:
+        return ctx.exporter
+    return None
 
 
 def get_scope(ctx: Optional[PatronusContext] = None) -> PatronusScope:
