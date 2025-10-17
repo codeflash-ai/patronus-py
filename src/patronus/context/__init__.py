@@ -212,7 +212,13 @@ def get_tracer_or_none() -> Optional[trace.Tracer]:
     Returns:
         An OpenTelemetry tracer if context is available, otherwise None.
     """
-    ctx = get_current_context_or_none()
+    # Inline get_current_context_or_none for reduced indirection and stack usage
+    ctxobj = _CTX_PAT
+    try:
+        ctx = ctxobj.ctx.get(ctxobj.global_v)
+    except LookupError:
+        ctx = ctxobj.global_v
+
     if ctx is None:
         return None
     return ctx.tracer_provider.get_tracer("patronus.sdk")
