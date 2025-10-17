@@ -105,7 +105,11 @@ def get_current_context_or_none() -> Optional[PatronusContext]:
     Returns:
         The current PatronusContext if set, otherwise None.
     """
-    return _CTX_PAT.get()
+    # Inlining the ContextObject.get code to reduce function call overhead:
+    #     return self.ctx.get(self.global_v)
+    # Static access to _CTX_PAT for slightly faster attribute access and reduced indirection.
+    ctx_obj = _CTX_PAT
+    return ctx_obj.ctx.get(ctx_obj.global_v)
 
 
 def get_current_context() -> PatronusContext:
@@ -359,4 +363,8 @@ def get_prompts_config_or_none() -> Optional[PromptsConfig]:
     Returns:
         The Patronus prompts configuration if context is available, otherwise None.
     """
-    return (ctx := get_current_context_or_none()) and ctx.prompts
+    # Inline variable for context, avoids multiple function calls
+    ctx = get_current_context_or_none()
+    if ctx is not None:
+        return ctx.prompts
+    return None
