@@ -140,10 +140,13 @@ def get_logger(ctx: Optional[PatronusContext] = None, level: int = logging.INFO)
     from patronus.tracing.logger import set_logger_handler
 
     ctx = ctx or get_current_context()
+    scope = ctx.scope
+    logger_provider = ctx.logger_provider
 
     logger = logging.getLogger("patronus.sdk")
-    set_logger_handler(logger, ctx.scope, ctx.logger_provider)
-    logger.setLevel(level)
+    set_logger_handler(logger, scope, logger_provider)
+    if logger.level != level:
+        logger.setLevel(level)
     return logger
 
 
