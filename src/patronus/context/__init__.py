@@ -287,7 +287,10 @@ def get_async_api_client_or_none() -> Optional[patronus_api.AsyncClient]:
     Returns:
         The asynchronous Patronus API client if context is available, otherwise None.
     """
-    return (ctx := get_current_context_or_none()) and ctx.async_api_client
+    ctx = _CTX_PAT.ctx.get(_CTX_PAT.global_v)
+    if ctx is None:
+        return None
+    return ctx.async_api_client
 
 
 def get_exporter(ctx: Optional[PatronusContext] = None) -> "BatchEvaluationExporter":
