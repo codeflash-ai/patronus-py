@@ -14,7 +14,8 @@ import uuid
 import decimal
 
 from opentelemetry.trace import get_current_span, SpanContext
-from typing import Any, Optional, Union, Self
+from typing import Any, Optional, Union
+from typing_extensions import Self
 
 from patronus import context
 from patronus.api import api_types
@@ -46,16 +47,16 @@ def ensure_loading(
 
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        if hasattr(self, 'load') and callable(getattr(self, 'load')) and not getattr(self, '_loaded', False):
+        if hasattr(self, "load") and callable(getattr(self, "load")) and not getattr(self, "_loaded", False):
             self.load()
         return func(self, *args, **kwargs)
-    
+
     @functools.wraps(func)
     async def async_wrapper(self, *args, **kwargs):
-        if hasattr(self, 'load') and callable(getattr(self, 'load')) and not getattr(self, '_loaded', False):
+        if hasattr(self, "load") and callable(getattr(self, "load")) and not getattr(self, "_loaded", False):
             await self.load()
         return await func(self, *args, **kwargs)
-    
+
     if inspect.iscoroutinefunction(func):
         return async_wrapper
     else:
@@ -267,6 +268,17 @@ def handle_eval_output(
 
 
 def coerce_eval_output_type(ev_output: typing.Any, qualname: str) -> EvaluationResult:
+    ev_type = type(ev_output)
+    if ev_type is EvaluationResult:
+        return ev_output
+    if ev_type is bool:
+        return EvaluationResult(pass_=ev_output, score=float(ev_output))
+    if ev_type is int or ev_type is float:
+        return EvaluationResult(score=float(ev_output))
+    if ev_type is str:
+        return EvaluationResult(text_output=ev_output)
+
+    # Fallback for subclasses
     if isinstance(ev_output, EvaluationResult):
         return ev_output
     if isinstance(ev_output, bool):
@@ -890,7 +902,7 @@ class RemoteEvaluator(RemoteEvaluatorMixin, StructuredEvaluator):
             raise RuntimeError(f"Remote evaluator '{self.evaluator_id_or_alias}' not found.")
 
         # Get criteria with revision if revision is not provided
-        if self.criteria and not re.match(r'^[^:]+:([^:]+:)?\d+$', self.criteria):
+        if self.criteria and not re.match(r"^[^:]+:([^:]+:)?\d+$", self.criteria):
             criteria = api.list_criteria_sync(api_types.ListCriteriaRequest(name=self.criteria, get_last_revision=True))
             if not criteria.evaluator_criteria:
                 raise RuntimeError(f"Criteria '{self.criteria}' not found")
@@ -1024,7 +1036,7 @@ class AsyncRemoteEvaluator(RemoteEvaluatorMixin, AsyncStructuredEvaluator):
             raise RuntimeError(f"Remote evaluator '{self.evaluator_id_or_alias}' not found.")
 
         # Get criteria with revision if revision is not provided
-        if self.criteria and not re.match(r'^[^:]+:([^:]+:)?\d+$', self.criteria):
+        if self.criteria and not re.match(r"^[^:]+:([^:]+:)?\d+$", self.criteria):
             criteria = await api.list_criteria(
                 api_types.ListCriteriaRequest(name=self.criteria, get_last_revision=True)
             )
