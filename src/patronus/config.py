@@ -18,7 +18,7 @@ DEFAULT_APP_NAME = "default"
 
 
 def get_service_default():
-    otel_service_name = os.getenv("OTEL_SERVICE_NAME")
+    otel_service_name = os.environ.get("OTEL_SERVICE_NAME")
     if otel_service_name:
         return otel_service_name
     service = None
