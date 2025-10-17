@@ -50,11 +50,12 @@ class PatronusAttributesSpanProcessor(SpanProcessor):
         super().on_start(span, parent_context)
 
 
-@functools.lru_cache()
+@functools.lru_cache(maxsize=None)
 def _create_patronus_attributes_span_processor(
     project_name: str, app: Optional[str] = None, experiment_id: Optional[str] = None
 ):
-    return PatronusAttributesSpanProcessor(project_name=project_name, app=app, experiment_id=experiment_id)
+    # Avoid keyword assignment for faster call
+    return PatronusAttributesSpanProcessor(project_name, app, experiment_id)
 
 
 @functools.lru_cache()
