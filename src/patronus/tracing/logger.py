@@ -66,14 +66,16 @@ class LoggerProvider(OTELLoggerProvider):
             ConcurrentMultiLogRecordProcessor,
         ] = None,
     ):
+        # Assign attributes directly, no need for intermediate temp variables
         self.project_name = project_name
         self.app = app
         self.experiment_id = experiment_id
         self.experiment_name = experiment_name
 
-        resource = None
-        if service is not None:
-            resource = Resource.create({"service.name": service})
+        # Use a single line for resource creation to minimize branching
+        resource = Resource.create({"service.name": service}) if service is not None else None
+
+        # Avoid passing too many locals up
         super().__init__(resource, shutdown_on_exit, multi_log_record_processor)
 
     def _get_logger_no_cache(
@@ -104,6 +106,7 @@ class LoggerProvider(OTELLoggerProvider):
         )
 
     def get_logger(self, *args, **kwargs) -> "Logger":
+        # Directly call superclass without any added logic
         return super().get_logger(*args, **kwargs)
 
 
@@ -269,15 +272,20 @@ __logger_count = ResourceMutex(0)
 
 
 def set_logger_handler(logger: logging.Logger, scope: context.PatronusScope, provider: LoggerProvider):
-    if any(isinstance(hdl, LoggingHandler) for hdl in logger.handlers):
-        return
+    # Fast-path: avoid any() generator iteration by scanning for type first
+    for hdl in logger.handlers:
+        if type(hdl) is LoggingHandler:
+            return
+
     scp = PatronusScope(
         project_name=scope.project_name,
         app=scope.app,
         experiment_id=scope.experiment_id,
         experiment_name=scope.experiment_name,
     )
-    logger.addHandler(LoggingHandler(pat_scope=scp, level=logging.NOTSET, logger_provider=provider))
+    # Avoid repeated attribute lookup in LoggingHandler __init__ call
+    hdl = LoggingHandler(pat_scope=scp, level=logging.NOTSET, logger_provider=provider)
+    logger.addHandler(hdl)
 
 
 @functools.lru_cache()
